@@ -32,91 +32,112 @@ def delete_item(item_id):
     c.execute("DELETE FROM items WHERE id = ?", (item_id,))
     conn.commit()
 
-# --- 2. コールバック関数（確実なデータ更新処理） ---
-# 【購入ボタンを押した時の処理】
+# --- 2. コールバック関数（★即時反映の処理） ---
 def buy_item(idx, curr, need):
-    new_curr = min(curr + need, 15) # 現在の在庫 + 必要数 (最大15)
-    update_item_fields(idx, new_curr, 0) # 在庫を更新し、必要数を0にする
+    new_curr = min(curr + need, 15)
+    # DBを更新
+    update_item_fields(idx, new_curr, 0)
+    # ★画面の表示（セッション）もその場で即座に書き換える★
+    st.session_state[f"c_{idx}"] = new_curr
+    st.session_state[f"n_{idx}"] = 0
 
-# 【プルダウンを変更した時の処理】
 def update_qty(idx, curr_key, need_key):
     new_c = st.session_state[curr_key]
     new_n = st.session_state[need_key]
     update_item_fields(idx, new_c, new_n)
 
-# 【削除ボタンを押した時の処理】
 def delete_item_callback(idx):
     delete_item(idx)
 
 
-# --- 3. UI設定 & スマホ用CSS ---
+# --- 3. UI設定 & スマホ用強力CSS ---
 st.set_page_config(page_title="買い物リスト", layout="centered")
 
 st.markdown("""
 <style>
-/* スマホでのカラム縦積みを防止し、強制的に横並びにする */
-@media (max-width: 768px) {
-    div[data-testid="column"] {
-        min-width: 0 !important;
-        flex-basis: auto !important;
-    }
-}
-/* コンテナの無駄な余白を削る */
+/* 画面全体の無駄な余白を消す */
 .main .block-container {
     padding-top: 1rem !important;
     padding-left: 0.2rem !important;
     padding-right: 0.2rem !important;
+    max-width: 100% !important;
 }
-/* プルダウンの高さを抑える */
-div[data-baseweb="select"] { min-height: 32px !important; }
+
+/* ★スマホでも強制的に横一列にする強力な設定★ */
+div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+/* カラムが縦に積まれるのを防ぐ */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    width: auto !important;
+    min-width: 0 !important;
+    flex-basis: auto !important;
+    padding: 0 !important;
+}
+
+/* ★列の比率設定（品名を広く、プルダウンを極限まで狭く）★ */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) { flex: 4.5 !important; } /* 品名 */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) { flex: 1.2 !important; } /* 在庫 */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) { flex: 1.2 !important; } /* 必要 */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) { flex: 1.8 !important; } /* 操作 */
+
+/* プルダウンの高さを抑え、幅を狭く見せる */
+div[data-baseweb="select"] { 
+    min-height: 30px !important; 
+    padding: 0 !important;
+}
 div[data-baseweb="select"] > div {
-    font-size: 0.9rem !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    font-size: 0.85rem !important;
+    padding: 2px 4px !important;
 }
 .stSelectbox label { display: none !important; }
 
-/* ボタンのスタイル */
+/* ボタンをコンパクトにする */
 .stButton > button {
     width: 100% !important;
-    height: 34px !important;
-    min-height: 34px !important;
+    height: 30px !important;
+    min-height: 30px !important;
     padding: 0 !important;
-    font-size: 0.85rem !important;
+    font-size: 0.8rem !important;
     font-weight: bold !important;
 }
 
-/* ヘッダーの文字スタイル */
+/* ★ヘッダーの文字スタイル（左寄せ）★ */
 .header-col {
     font-size: 0.75rem;
-    color: #888;
+    color: #666;
     font-weight: bold;
-    text-align: center;
+    text-align: left !important;
+    padding-left: 2px;
 }
-.header-col.left { text-align: left; }
 
-/* 買うべきアイテム（品名）の強調スタイル */
-.item-buy {
-    background-color: #fefcbf;
-    padding: 8px 4px;
+/* ★アイテム（品名）のスタイル（左寄せ）★ */
+.item-buy, .item-ok {
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-align: left !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 2px;
+}
+.item-buy { color: #b7791f; } /* 買うものは茶色っぽく */
+.item-ok { color: #333; }
+
+/* 行全体の背景と枠 */
+.item-row {
+    padding: 6px 4px;
     border-radius: 4px;
-    font-weight: bold;
-    font-size: 0.85rem;
-    color: #b7791f;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 4px;
 }
-/* 買わなくていいアイテム（品名）のスタイル */
-.item-ok {
-    padding: 8px 4px;
-    font-size: 0.85rem;
-    color: #333;
-    font-weight: bold;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+.needs-buy { background-color: #fefcbf; } /* 買うものがある時は薄い黄色 */
+.no-buy { background-color: #ffffff; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -125,7 +146,8 @@ st.title("🛒 買い物リスト")
 # --- 4. 品物の追加セクション ---
 with st.expander("➕ 品物を追加", expanded=False):
     with st.form("add_form", clear_on_submit=True):
-        col_n, col_c, col_ne = st.columns([3.5, 1.5, 1.5])
+        # フォーム部分も横一列
+        col_n, col_c, col_ne = st.columns([4.5, 1.2, 1.2])
         with col_n:
             name_in = st.text_input("品名", placeholder="例：バナナ", label_visibility="collapsed")
         with col_c:
@@ -140,9 +162,9 @@ with st.expander("➕ 品物を追加", expanded=False):
 st.write("") 
 
 # --- 5. 買い物リスト表示 ---
-# ヘッダー (比率 -> 品名:3, 在庫:1.2, 必要:1.2, 操作:1.6)
-h1, h2, h3, h4 = st.columns([3, 1.2, 1.2, 1.6])
-with h1: st.markdown('<div class="header-col left">品名</div>', unsafe_allow_html=True)
+# ヘッダー (比率をCSSに合わせる)
+h1, h2, h3, h4 = st.columns([4.5, 1.2, 1.2, 1.8])
+with h1: st.markdown('<div class="header-col">品名</div>', unsafe_allow_html=True)
 with h2: st.markdown('<div class="header-col">在庫</div>', unsafe_allow_html=True)
 with h3: st.markdown('<div class="header-col">必要</div>', unsafe_allow_html=True)
 with h4: st.markdown('<div class="header-col">操作</div>', unsafe_allow_html=True)
@@ -156,11 +178,13 @@ else:
         idx, name, curr, need = item
         is_buying = need > 0
         
-        # 区切り線
-        st.markdown("<hr style='margin: 4px 0; border: none; border-top: 1px dashed #ddd;'>", unsafe_allow_html=True)
+        row_class = "needs-buy" if is_buying else "no-buy"
         
-        # アイテム行
-        c1, c2, c3, c4 = st.columns([3, 1.2, 1.2, 1.6], vertical_alignment="center")
+        # 1行ごとの枠
+        st.markdown(f'<div class="item-row {row_class}">', unsafe_allow_html=True)
+        
+        # アイテム行のカラム
+        c1, c2, c3, c4 = st.columns([4.5, 1.2, 1.2, 1.8], vertical_alignment="center")
         
         with c1:
             if is_buying:
@@ -179,3 +203,5 @@ else:
                 st.button("購入", key=f"buy_{idx}", type="primary", on_click=buy_item, args=(idx, curr, need))
             else:
                 st.button("削除", key=f"del_{idx}", on_click=delete_item_callback, args=(idx,))
+                
+        st.markdown('</div>', unsafe_allow_html=True)
