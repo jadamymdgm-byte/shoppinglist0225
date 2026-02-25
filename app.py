@@ -48,89 +48,88 @@ def delete_item_callback(idx):
     delete_item(idx)
 
 
-# --- 3. UI設定 & スマホ横幅ピッタリCSS ---
+# --- 3. UI設定 & 隙間ゼロCSS ---
 st.set_page_config(page_title="買い物リスト", layout="centered")
 
 st.markdown("""
 <style>
-/* 画面の横スクロールを絶対に禁止する設定 */
-html, body, [class*="css"] {
+/* 画面の横スクロールを完全に防ぐ */
+html, body, [data-testid="stAppViewContainer"], .main .block-container {
     max-width: 100vw !important;
     overflow-x: hidden !important;
-}
-
-/* 画面端の余白を極限まで削る */
-.main .block-container {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
     padding-top: 1rem !important;
-    padding-left: 2px !important;
-    padding-right: 2px !important;
 }
 
-/* ★横一列のブロック設定★ */
+/* ★一番の原因：要素間の広すぎる隙間をゼロにする★ */
 div[data-testid="stHorizontalBlock"] {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
     align-items: center !important;
-    gap: 2px !important; /* 要素の隙間をギリギリまで詰める */
+    gap: 0px !important; /* ←ここが超重要！隙間を消す */
     width: 100% !important;
 }
 
-/* ★各列の幅をパーセンテージでガチガチに固定（はみ出し防止）★ */
+/* 各列のパディングを極限まで削る */
 div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
     min-width: 0 !important; 
-    padding: 0 !important;
-    margin: 0 !important;
+    padding: 0 2px !important; /* 左右にわずか2pxの余白だけ残す */
 }
-/* 画面幅を 42% : 18% : 18% : 22% でキッチリ分割 */
-div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) { width: 42% !important; flex: 0 0 42% !important; }
-div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) { width: 18% !important; flex: 0 0 18% !important; }
-div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) { width: 18% !important; flex: 0 0 18% !important; }
-div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) { width: 22% !important; flex: 0 0 22% !important; }
 
-/* プルダウンの余白を極限まで削る */
+/* ★各項目の幅を狭くキッチリ固定★ */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(1) { width: 44% !important; flex: 0 0 44% !important; } /* 品名: 広め */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) { width: 17% !important; flex: 0 0 17% !important; } /* 在庫: 狭い */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(3) { width: 17% !important; flex: 0 0 17% !important; } /* 必要: 狭い */
+div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(4) { width: 22% !important; flex: 0 0 22% !important; } /* 操作: ボタン用 */
+
+/* ★プルダウン（セレクトボックス）を極限まで小さく★ */
 div[data-baseweb="select"] { 
-    min-height: 28px !important; 
+    min-height: 28px !important;
+    height: 28px !important;
 }
 div[data-baseweb="select"] > div {
-    padding: 0px 4px !important;
-    font-size: 0.8rem !important;
+    padding: 0px 2px !important;
+    font-size: 0.75rem !important;
 }
 .stSelectbox label { display: none !important; }
 
-/* ボタンのサイズも最小化 */
+/* ★ボタンも極限まで小さく★ */
 .stButton > button {
     width: 100% !important;
     height: 28px !important;
     min-height: 28px !important;
     padding: 0 !important;
-    font-size: 0.75rem !important;
+    font-size: 0.7rem !important;
     font-weight: bold !important;
 }
 
-/* テキスト類の調整（左寄せ） */
+/* テキスト類の調整 */
 .header-col {
     font-size: 0.7rem;
-    color: #666;
-    font-weight: bold;
+    color: #888;
+    text-align: center !important;
+}
+.header-left {
     text-align: left !important;
-    padding-left: 4px;
+    padding-left: 2px;
 }
 .item-buy, .item-ok {
     font-size: 0.85rem;
     font-weight: bold;
     text-align: left !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis; /* 長い品名は「...」で省略 */
-    padding-left: 4px;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important; /* 長い品名ははみ出さずに「...」にする */
+    display: block;
 }
 .item-buy { color: #b7791f; }
 .item-ok { color: #333; }
 
-/* 行全体の枠 */
+/* 行全体の枠（少し丸みを帯びた背景） */
 .item-row {
-    padding: 6px 2px;
+    padding: 6px 0px;
     border-radius: 4px;
     border: 1px solid #e2e8f0;
     margin-bottom: 4px;
@@ -145,7 +144,7 @@ st.title("🛒 買い物リスト")
 # --- 4. 品物の追加セクション ---
 with st.expander("➕ 品物を追加", expanded=False):
     with st.form("add_form", clear_on_submit=True):
-        col_n, col_c, col_ne = st.columns(3) # CSSで幅は上書きされるので適当でOK
+        col_n, col_c, col_ne = st.columns([44, 17, 17]) # CSSで強制されます
         with col_n:
             name_in = st.text_input("品名", placeholder="例：バナナ", label_visibility="collapsed")
         with col_c:
@@ -160,8 +159,8 @@ with st.expander("➕ 品物を追加", expanded=False):
 st.write("") 
 
 # --- 5. 買い物リスト表示 ---
-h1, h2, h3, h4 = st.columns(4) # CSSで幅は強制上書きされます
-with h1: st.markdown('<div class="header-col">品名</div>', unsafe_allow_html=True)
+h1, h2, h3, h4 = st.columns([44, 17, 17, 22])
+with h1: st.markdown('<div class="header-col header-left">品名</div>', unsafe_allow_html=True)
 with h2: st.markdown('<div class="header-col">在庫</div>', unsafe_allow_html=True)
 with h3: st.markdown('<div class="header-col">必要</div>', unsafe_allow_html=True)
 with h4: st.markdown('<div class="header-col">操作</div>', unsafe_allow_html=True)
@@ -179,7 +178,7 @@ else:
         
         st.markdown(f'<div class="item-row {row_class}">', unsafe_allow_html=True)
         
-        c1, c2, c3, c4 = st.columns(4) # CSSで幅は強制上書きされます
+        c1, c2, c3, c4 = st.columns([44, 17, 17, 22])
         
         with c1:
             if is_buying:
