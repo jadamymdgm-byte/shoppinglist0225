@@ -4,8 +4,6 @@ import json
 
 # --- 1. データベース処理 (SQLite) ---
 def init_db():
-    # Streamlit Cloudでは再起動時にこのファイルが消えることがありますが、
-    # 動作速度と安定性を優先してSQLiteを使用します。
     conn = sqlite3.connect('shopping_list_simple.db', check_same_thread=False)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS items 
@@ -37,10 +35,8 @@ def delete_item(item_id):
 
 # --- 2. コールバック関数 (即時反映用) ---
 def buy_item(idx, curr, need):
-    # 購入ボタン：現在の在庫 + 必要数 を計算して在庫へ (最大15)
     new_curr = min(curr + need, 15)
     update_item_fields(idx, new_curr, 0)
-    # セッションステートを書き換えて、即座に画面上の数字を変える
     st.session_state[f"c_{idx}"] = new_curr
     st.session_state[f"n_{idx}"] = 0
 
@@ -55,7 +51,6 @@ def delete_item_callback(idx):
 # --- 3. UI設定 ---
 st.set_page_config(page_title="買い物チェックリスト", layout="centered")
 
-# スマホ向けスタイル調整
 st.markdown("""
 <style>
 .main .block-container {
@@ -64,10 +59,6 @@ st.markdown("""
     max-width: 500px;
 }
 .stButton > button {
-    border-radius: 10px;
-}
-/* カードのような外枠のスタイル */
-div[data-testid="stVerticalBlock"] > div {
     border-radius: 10px;
 }
 </style>
@@ -89,7 +80,7 @@ with st.expander("➕ 品物を追加する", expanded=False):
             add_item(name_in, curr_in, need_in)
             st.rerun()
 
-st.write("") # スペース
+st.write("") 
 
 # --- 5. 買い物リスト表示 (縦型カードレイアウト) ---
 items = get_items()
@@ -97,21 +88,17 @@ items = get_items()
 if not items:
     st.info("リストは空です。「品物を追加する」から登録してください。")
 else:
-    st.subheader("現在のリスト")
     for item in items:
         idx, name, curr, need = item
         is_buying = need > 0
         
-        # 枠線付きのカード
         with st.container(border=True):
-            # 品名
             st.caption("品名")
             if is_buying:
                 st.markdown(f"### 🛒 {name}")
             else:
                 st.markdown(f"### {name}")
             
-            # 在庫数と必要数のプルダウン
             col_curr, col_need = st.columns(2)
             with col_curr:
                 st.selectbox("在庫数", range(16), index=curr, key=f"c_{idx}", 
@@ -120,21 +107,37 @@ else:
                 st.selectbox("必要数", range(16), index=need, key=f"n_{idx}", 
                              on_change=update_qty, args=(idx, f"c_{idx}", f"n_{idx}"))
             
-            st.write("") # 隙間
-            
-            # 操作ボタン
+            st.write("") 
             if is_buying:
-                # 購入ボタン：在庫反映ロジック
                 st.button("購入完了（在庫にプラス）", key=f"buy_{idx}", type="primary", 
                           use_container_width=True, on_click=buy_item, args=(idx, curr, need))
             else:
-                # 削除ボタン
                 st.button("項目を削除", key=f"del_{idx}", 
                           use_container_width=True, on_click=delete_item_callback, args=(idx,))
 
-# --- 6. データバックアップ (おまけ) ---
+# --- 6. データのバックアップ/復元セクション ---
 st.write("---")
 with st.expander("💾 データのバックアップ/復元"):
-    st.write("Streamlit Cloudがリセットされた際、このテキストを保存しておくと復元に役立ちます。")
+    st.subheader("現在のバックアップ")
     backup_data = [{"name": i[1], "current": i[2], "needed": i[3]} for i in items]
-    st.code(json.dumps(backup_data, ensure_ascii=False))
+    st.code(json.dumps(backup_data, ensure_ascii=False), language="json")
+    st.caption("↑ これを長押しでコピーして、メモ帳などに保存してください。")
+    
+    st.divider()
+    
+    st.subheader("リストを復元する")
+    restore_text = st.text_area("保存していたテキストをここに貼り付けてください", placeholder='[{"name": "バナナ", ...}]')
+    if st.button("このデータで復元する", use_container_width=True):
+        if restore_text:
+            try:
+                data = json.loads(restore_text)
+                # 既存のデータを全削除（重複防止のため）
+                c = conn.cursor()
+                c.execute("DELETE FROM items")
+                # データを流し込む
+                for d in data:
+                    add_item(d['name'], d['current'], d['needed'])
+                st.success("復元が完了しました！")
+                st.rerun()
+            except Exception as e:
+                st.error("エラー：正しい形式のデータではありません。")
